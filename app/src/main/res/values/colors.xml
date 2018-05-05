@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="colorPrimary">#3F51B5</color>
+    <color name="colorPrimaryDark">#303F9F</color>
+    <color name="colorAccent">#FF4081</color>
+
+    <color name="black_overlay">#66000000</color>
+
+    <!-- lv_bluetooth_devices_item -->
+    <color name="color_tv_paired_background">#27c124</color>
+    <color name="color_tv_not_paired_background">#e20000</color>
+    <color name="color_tv_paired_text">#fff</color>
+
+</resources>

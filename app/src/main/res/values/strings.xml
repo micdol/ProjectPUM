@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- APP related strings -->
+    <string name="app_name">PUM Project</string>
+
+    <!-- CONTROLS -->
+    <!-- Buttons -->
+    <string name="btn_bt_devices_scan_text">Scan</string>
+    <string name="btn_bt_devices_scan_running_text">Scanning...</string>
+
+    <!-- Toggle Buttons -->
+    <string name="tgl_bt_toggle_text_on">Bluetooth on</string>
+    <string name="tgl_bt_toggle_text_off">Bluetooth off</string>
+
+    <!-- Text Views -->
+    <string name="tv_bt_devices_header_text_no_devices">No devices found</string>
+    <string name="tv_bt_devices_header_text_devices_found">Pick REJ 006 device to connect to</string>
+    <string name="tv_is_paired">Paired</string>
+    <string name="tv_is_not_paired">Not Paired</string>
+
+
+</resources>
