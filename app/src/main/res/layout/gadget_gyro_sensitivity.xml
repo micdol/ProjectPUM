@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/ll_gyro_sens"
+    android:layout_width="fill_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="5dp">
+
+
+    <TextView
+        android:id="@+id/tv_gyro_sens"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="5dp"
+        android:text="Gyroscope Sensitivity"
+        android:textAppearance="@android:style/TextAppearance.Material.Medium" />
+
+    <RadioGroup
+        android:id="@+id/rg_gyro_sens"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="horizontal">
+
+
+        <RadioButton
+            android:id="@+id/rb_gyro_sens_250"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_margin="5dp"
+            android:layout_weight="1"
+            android:checked="true"
+            android:text="250 deg/s"
+            android:textAppearance="@android:style/TextAppearance.Material.Small" />
+
+        <RadioButton
+            android:id="@+id/rb_gyro_sens_500"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_margin="5dp"
+            android:layout_weight="1"
+            android:text="500 deg/s"
+            android:textAppearance="@android:style/TextAppearance.Material.Small" />
+
+        <RadioButton
+            android:id="@+id/rb_gyro_sens_2500"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_margin="5dp"
+            android:layout_weight="1"
+            android:text="2500 deg/s"
+            android:textAppearance="@android:style/TextAppearance.Material.Small" />
+    </RadioGroup>
+
+
+</LinearLayout>

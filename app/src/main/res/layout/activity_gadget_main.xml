@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    tools:context=".GadgetMainActivity">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/tv_gadget"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_margin="5dp"
+            android:padding="5dp"
+            android:text="@string/tv_gadget_text"
+            android:textAppearance="@android:style/TextAppearance.Material.Large" />
+
+        <LinearLayout
+            android:id="@+id/ll_id"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:padding="5dp">
+
+            <TextView
+                android:id="@+id/tv_id_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_margin="5dp"
+                android:minWidth="75dp"
+                android:text="@string/tv_id_text"
+                android:textAppearance="@android:style/TextAppearance.Material.Medium" />
+
+            <TextView
+                android:id="@+id/tv_id_value"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_margin="5dp"
+                android:text="@string/unknown_string"
+                android:textAppearance="@android:style/TextAppearance.Material.Medium" />
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/ll_battery"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:padding="5dp">
+
+            <TextView
+                android:id="@+id/tv_battery_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_margin="5dp"
+                android:minWidth="75dp"
+                android:text="@string/tv_battery_text"
+                android:textAppearance="@android:style/TextAppearance.Material.Medium" />
+
+            <ProgressBar
+                android:id="@+id/pb_battery"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_margin="5dp"
+                android:layout_weight="1"
+                android:maxHeight="20dp"
+                android:minHeight="20dp"
+                android:progress="24" />
+
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <LinearLayout
+        style="?android:attr/buttonBarStyle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/btn_offline"
+            style="?android:attr/buttonBarButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:enabled="false"
+            android:text="@string/btn_offline_meas_text" />
+
+        <Button
+            android:id="@+id/btn_online"
+            style="?android:attr/buttonBarButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/btn_online_meas_text" />
+    </LinearLayout>
+
+</RelativeLayout>

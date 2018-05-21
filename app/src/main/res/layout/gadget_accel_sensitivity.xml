@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/ll_accel_sens"
+    android:layout_width="fill_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="5dp">
+
+
+    <TextView
+        android:id="@+id/tv_accel_sens"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="5dp"
+        android:text="Accelerometer Sensitivity"
+        android:textAppearance="@android:style/TextAppearance.Material.Medium" />
+
+    <RadioGroup
+        android:id="@+id/rg_accel_sens"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="horizontal">
+
+
+        <RadioButton
+            android:id="@+id/rb_accel_sens_6"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_margin="5dp"
+            android:layout_weight="1"
+            android:checked="true"
+            android:text="6 g"
+            android:textAppearance="@android:style/TextAppearance.Material.Small" />
+
+        <RadioButton
+            android:id="@+id/rb_accel_sens_12"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_margin="5dp"
+            android:layout_weight="1"
+            android:text="12 g"
+            android:textAppearance="@android:style/TextAppearance.Material.Small" />
+
+        <RadioButton
+            android:id="@+id/rb_accel_sens_24"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_margin="5dp"
+            android:layout_weight="1"
+            android:text="24 g"
+            android:textAppearance="@android:style/TextAppearance.Material.Small" />
+    </RadioGroup>
+
+
+</LinearLayout>

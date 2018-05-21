@@ -17,6 +17,25 @@
     <string name="tv_bt_devices_header_text_devices_found">Pick REJ 006 device to connect to</string>
     <string name="tv_is_paired">Paired</string>
     <string name="tv_is_not_paired">Not Paired</string>
+    <string name="tv_id_label_text">ID</string>
+    <string name="tv_delay_label_text">Delay</string>
+    <string name="btn_offline_meas_text">Offline</string>
+    <string name="btn_online_meas_text">Online</string>
+    <string name="tv_battery_text">Battery</string>
+    <string name="unknown_string">---</string>
+    <string name="tv_id_text">ID</string>
+    <string name="tv_gadget_text">Gadget</string>
 
+    <string-array name="frequencies_array">
+        <item>20 Hz</item>
+        <item>50 Hz</item>
+        <item>50 Hz</item>
+        <item>100 Hz</item>
+        <item>200 Hz</item>
+        <item>400 Hz</item>
+        <item>500 Hz</item>
+        <item>700 Hz</item>
+        <item>1000 Hz</item>
+    </string-array>
 
 </resources>

@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/ll_channel_config"
+    android:layout_width="fill_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="5dp">
+
+
+    <TextView
+        android:id="@+id/tv_channel_config"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="5dp"
+        android:text="Channel Configuration"
+        android:textAppearance="@android:style/TextAppearance.Material.Medium" />
+
+    <TableLayout
+        android:id="@+id/tbl_channel_config"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:stretchColumns="*">
+
+        <TableRow
+            android:id="@+id/tblr_channel_config_accel"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+            <CheckBox
+                android:id="@+id/cb_channel_config_ax"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_margin="5dp"
+                android:checked="true"
+                android:text="AX"
+                android:textAppearance="@android:style/TextAppearance.Material.Small" />
+
+            <CheckBox
+                android:id="@+id/cb_channel_config_ay"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_margin="5dp"
+                android:checked="true"
+                android:text="AY"
+                android:textAppearance="@android:style/TextAppearance.Material.Small" />
+
+            <CheckBox
+                android:id="@+id/cb_channel_config_az"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_margin="5dp"
+                android:checked="true"
+                android:text="AZ"
+                android:textAppearance="@android:style/TextAppearance.Material.Small" />
+        </TableRow>
+
+        <TableRow
+            android:id="@+id/tblr_channel_config_gyro"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+            <CheckBox
+                android:id="@+id/cb_channel_config_gr"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_margin="5dp"
+                android:checked="true"
+                android:text="Roll"
+                android:textAppearance="@android:style/TextAppearance.Material.Small" />
+
+            <CheckBox
+                android:id="@+id/cb_channel_config_gp"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_margin="5dp"
+                android:checked="true"
+                android:text="Pitch"
+                android:textAppearance="@android:style/TextAppearance.Material.Small" />
+
+            <CheckBox
+                android:id="@+id/cb_channel_config_gy"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_margin="5dp"
+                android:checked="true"
+                android:text="Yaw"
+                android:textAppearance="@android:style/TextAppearance.Material.Small" />
+        </TableRow>
+
+    </TableLayout>
+</LinearLayout>

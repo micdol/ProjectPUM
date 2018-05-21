@@ -9,297 +9,574 @@ import java.io.BufferedOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.text.DateFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Calendar;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 
-// GADGET HAS TO BE PAIR IN ORDER FOR IT TO WORK
+// GADGET HAS TO BE PAIRED IN ORDER FOR IT TO WORK
 public class Gadget {
+    private final static String DEBUG_TAG = "--DEBUG--";
 
-    private final String DEBUG_TAG = "--GADGET--";
+    // publicly available arams restrictions
+    public final static List<Integer> AVAILABLE_FREQUENCIES;
+    public final static List<Integer> AVAILABLE_GYRO_SENS;
+    public final static List<Integer> AVAILABLE_ACCEL_SENS;
+    public final static Map<Integer, Integer> CHANNEL_PER_FREQUENCY;
+    public final static String[] CHANNELS;
 
-    // number of attempts to connect to device, used in connect()
-    private final int RECONNECTS = 5;
-
-    // general timeout in ms, generally indicates a wait period for device to process/expose data
-    private final int TIMEOUT = 33;
-
-    // default size of the buffer which is used for reading
-    private final int READ_BUFF_SIZE = 256;
-
-    //
-    private final int READ_ATTEMPTS = 5;
-
-    // list of available commands
-    private interface CMD {
-        int SET_MEAS_PARAMS = 1;
-        int GET_ID = 2;
-        int SET_ID = 3;
-        int SET_ONLINE_ON = 5;
-        int GET_MEASURMENT = 128;
-        int RESET = 160;
-        int GET_MEAS_PARAMS = 254;
+    // static initalizer block (init static public constants)
+    static {
+        AVAILABLE_FREQUENCIES = Arrays.asList(20, 50, 100, 200, 400, 500, 700, 1000);
+        AVAILABLE_GYRO_SENS = Arrays.asList(250, 500, 2500);
+        AVAILABLE_ACCEL_SENS = Arrays.asList(6, 12, 24);
+        CHANNEL_PER_FREQUENCY = new Supplier<Map<Integer, Integer>>() {
+            @Override
+            public Map<Integer, Integer> get() {
+                Map<Integer, Integer> m = new LinkedHashMap<>();
+                m.put(20, 6);
+                m.put(50, 6);
+                m.put(100, 6);
+                m.put(200, 6);
+                m.put(400, 6);
+                m.put(500, 6);
+                m.put(700, 4);
+                m.put(1000, 2);
+                return m;
+            }
+        }.get();
+        CHANNELS = new String[]{"AX", "AY", "AZ", "GR", "GP", "GY"};
     }
 
-    private final BluetoothDevice btDevice;
+    private final Runnable tasksThread = new Runnable() {
+        final ExecutorService taskExecutor = Executors.newSingleThreadExecutor();
+        Future subtask = null;
+
+        @Override
+        public void run() {
+            Log.i(DEBUG_TAG, "Starting ioTask...");
+            while (true) {
+                // Subtask was scheduled but finished
+                if (subtask != null && subtask.isDone()) {
+                    Log.i(DEBUG_TAG, "Subtask finished");
+                    subtask = null;
+                    continue;
+                }
+
+                // No commands to process OR task is being processed - wait...
+                if (taskQueue.isEmpty() || (subtask != null && !subtask.isDone())) continue;
+
+                // Take first subtask
+                Runnable task = null;
+                try {
+                    task = taskQueue.take();
+                } catch (InterruptedException ex) {
+                    Log.e(DEBUG_TAG, "Error while taking next task to run: " + ex);
+                    continue;
+                }
+
+                subtask = taskExecutor.submit(task);
+                Log.i(DEBUG_TAG, "New subtask submitted");
+            }
+        }
+    };
+
+    private BluetoothDevice btDevice;
     private BluetoothSocket btSocket;
     private DataInputStream in;
     private DataOutputStream out;
+    private BlockingQueue<Runnable> taskQueue;
+    private List<GadgetListener> listeners;
+    private ExecutorService tasksExecutor;
+    private Integer stopOnlineHash;
+    private OnlineSettings lastKnownSettings;
 
     public Gadget(BluetoothDevice btDevice) {
         this.btDevice = btDevice;
         btSocket = null;
-        in = null;
-        out = null;
+        stopOnlineHash = null;
+        taskQueue = new LinkedBlockingDeque<>();
+        listeners = new ArrayList<>();
+        tasksExecutor = Executors.newSingleThreadExecutor();
+        tasksExecutor.submit(tasksThread);
     }
 
-    /**
-     * Tries to connect to device, if device is already connected attempt to disconnect is performed
-     * first. After function succeeds:
-     * - socket is valid, opened & connected
-     * - I/O streams are valid & opened
-     *
-     * @return was device connected and were I/O is established successfully
-     */
-    private synchronized boolean connect() {
-        // Already connected and disconnect fails -> false
-        if (isConnected() && !disconnect()) return false;
+    public void addListener(GadgetListener l) {
+        listeners.add(l);
+    }
 
-        try {
-            // Get device UUID
-            UUID uuid = btDevice.getUuids()[0].getUuid();
+    public void removeListener(GadgetListener l) {
+        listeners.remove(l);
+    }
 
-            // Create socket (old is discarded in disconnect)
-            btSocket = btDevice.createRfcommSocketToServiceRecord(uuid);
-
-            // Attempt to connect
-            int retry = 0;
-            while (true) {
+    public void getID() {
+        taskQueue.add(new Runnable() {
+            @Override
+            public void run() {
+                Log.i(DEBUG_TAG, "Starting getID task");
+                byte[] result = null;
                 try {
-                    btSocket.connect();
-                    break;
-                } catch (IOException ex) {
-                    if (retry++ < RECONNECTS) {
-                        Log.i(DEBUG_TAG, "Failed to connect. Retrying (" + retry + "): " + ex.toString());
-                        continue;
-                    }
-                    Log.i(DEBUG_TAG, "Failed to connect: " + ex.toString());
-                    // Perform cleanup - invalidate sockets & I/O streams
+                    connect();
+                    write(2);
+                    result = read();
+                    int len = result.length;
+                    String name = new String(Arrays.copyOfRange(result, 0, len - 1));
+                    int id = result[len - 1];
+                    for (GadgetListener gl : listeners) gl.onIDReceived(name, id);
                     disconnect();
-                    return false;
+                } catch (IOException ex) {
+                    Log.e(DEBUG_TAG, "getID failed: " + ex);
+                }
+                Log.i(DEBUG_TAG, "getID task finished");
+            }
+        });
+    }
+
+    public void setID(final int id) {
+        taskQueue.add(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    connect();
+                    byte[] toWrite = new byte[]{(byte) 3, (byte) id};
+                    write(toWrite);
+                    disconnect();
+                } catch (IOException ex) {
+                    Log.e(DEBUG_TAG, "setID failed: " + ex);
                 }
             }
-        } catch (IOException | ArrayIndexOutOfBoundsException ex) {
-            Log.i(DEBUG_TAG, "Error on connecting: " + ex.toString());
-            // Perform cleanup - invalidate sockets & I/O streams
-            disconnect();
-            return false;
-        }
-
-        // Obtain I/O streams
-        try {
-            in = new DataInputStream(new BufferedInputStream(btSocket.getInputStream()));
-            out = new DataOutputStream(new BufferedOutputStream(btSocket.getOutputStream()));
-        } catch (IOException ex) {
-            Log.i(DEBUG_TAG, "Failed to obtain I/O stream: " + ex.toString());
-            // Perform cleanup - invalidate sockets & I/O streams
-            disconnect();
-            return false;
-        }
-        Log.i(DEBUG_TAG, "GADGET connected.");
-
-        return true;
+        });
     }
 
-    /**
-     * Disconnects from device
-     * - closes and invalidates BT socket
-     * - closes and invalidates I/O streams
-     * This method is thread-safe
-     *
-     * @return
-     */
-    private synchronized boolean disconnect() {
-        // Socket and streams are already invalid
-        if (btSocket == null && in == null && out == null) return true;
+    public void startOnlineRejestration(OnlineSettings settings) {
+        settings.setToggleByte(true);
+        settings.setStartByte(true);
+        lastKnownSettings = settings;
+        final byte[] toWrite = settings.toByteArray();
+        final int SAMPLE_SIZE = settings.channelCnt * 2 + 2;
+        taskQueue.add(new Runnable() {
+            boolean firstSampleRead = false;
 
-        try {
-            // Close and invalidate socket
-            if (btSocket != null) btSocket.close();
-            btSocket = null;
+            @Override
+            public void run() {
+                try {
+                    connect();
+                    write(toWrite);
+                    while (true) {
+                        if (!taskQueue.isEmpty()) {
+                            try {
+                                Runnable stop = taskQueue.poll(100, TimeUnit.MILLISECONDS);
+                                if (stopOnlineHash == null || (stop != null && stop.hashCode() == stopOnlineHash)) {
+                                    taskQueue.take();
+                                    write(0);
+                                    stopOnlineHash = null;
+                                    break;
+                                } else {
+                                    taskQueue.clear();
+                                }
+                            } catch (InterruptedException e) {
+                            }
+                        }
 
-            // Close and invalidate IN stream
-            if (in != null) in.close();
-            in = null;
+                        // Check for first sample
+                        while (!firstSampleRead) {
+                            byte[] data = read(1);
+                            if (data[0] == (byte) 0xc3) {
+                                data = read(1);
+                                firstSampleRead = data[0] == (byte) 0x3c;
+                            }
+                        }
 
-            // Close and invalidate OUT stream
-            if (out != null) out.close();
-            out = null;
-        } catch (IOException ex) {
-            // Exception can only occur on close() so its pretty safe to ignore it
-            Log.i(DEBUG_TAG, "Error on disconnecting: " + ex.toString());
-        }
+                        // TODO
+                        byte[] data = read(SAMPLE_SIZE);
+                        OnlineSample sample = new OnlineSample(data, lastKnownSettings);
+                        Log.i(DEBUG_TAG, sample.toString());
+                        for (GadgetListener gl : listeners)
+                            gl.onOnlineRejestrationSampleReceived(sample);
+                    }
 
-        return btSocket == null && in == null && out == null;
+                    disconnect();
+                } catch (IOException ex) {
+                    Log.e(DEBUG_TAG, "startOnlineRejestration failed: " + ex);
+                }
+            }
+        });
     }
 
-    /**
-     * Checks if all params for connections are A-OK
-     * - socket is connected
-     * - I/O streams are valid
-     *
-     * @return T/F
-     */
-    public synchronized boolean isConnected() {
+    public void stopOnlineRejestration() {
+        Runnable r = new Runnable() {
+            @Override
+            public void run() {
+            }
+        };
+        stopOnlineHash = r.hashCode();
+        taskQueue.add(r);
+        lastKnownSettings = null;
+    }
+
+    public void getBattery() {
+        taskQueue.add(new Runnable() {
+            @Override
+            public void run() {
+                Log.i(DEBUG_TAG, "Starting getBattery task");
+                byte[] result = null;
+                try {
+                    connect();
+                    write(176);
+                    result = read();
+                    int state = (((int) result[0]) << 8) | (int) result[1];
+                    Log.i(DEBUG_TAG, "ACDC: " + state);
+                    for (GadgetListener gl : listeners) gl.onBatteryReceived(state);
+                    disconnect();
+                } catch (IOException ex) {
+                    Log.e(DEBUG_TAG, "getBattery failed: " + ex);
+                }
+                Log.i(DEBUG_TAG, "getBattery task finished");
+            }
+        });
+    }
+
+    public BluetoothDevice getBtDevice() {
+        return btDevice;
+    }
+
+    private synchronized boolean isConnected() {
         return btSocket != null && btSocket.isConnected() && in != null && out != null;
     }
 
-    public synchronized String getIDString() throws IOException {
-        if (!isConnected() && !connect()) throw new IOException("Gadget is not connected");
+    private synchronized void connect() throws IOException {
+        if (isConnected()) disconnect();
 
-        write(CMD.GET_ID);
-        byte[] output = read();
+        UUID uuid = btDevice.getUuids()[0].getUuid();
 
-        // last byte is integer ID
-        String id = new String(Arrays.copyOfRange(output, 0, output.length - 1));
+        btSocket = btDevice.createRfcommSocketToServiceRecord(uuid);
 
-        return null;
-    }
-
-    public synchronized int getIDNumber() throws IOException {
-        if (!isConnected() && !connect()) throw new IOException("Gadget is not connected");
-
-        write(CMD.GET_ID);
-        byte[] output = read();
-
-        int id = output[output.length - 1];
-        return id;
-    }
-
-    // For writing commands which do not send any additional details (like GET_ID)
-    private boolean write(int command) {
-        try {
-            out.write(command);
-            out.flush();
-            // Gadget needs some time to process command
-            Thread.sleep(TIMEOUT);
-        } catch (IOException | InterruptedException ex) {
-            Log.i(DEBUG_TAG, "Error on sending command: " + command + ", " + ex.toString());
-            return false;
+        int retry = 0;
+        while (true) {
+            try {
+                btSocket.connect();
+                break;
+            } catch (IOException ex) {
+                if (retry++ < 5) continue;
+            }
         }
-        return true;
+
+        in = new DataInputStream(new BufferedInputStream(btSocket.getInputStream()));
+        out = new DataOutputStream(new BufferedOutputStream(btSocket.getOutputStream()));
     }
 
-    private boolean write(int command, byte[] params) throws IOException {
-        try {
-            byte[] toSend = new byte[1 + params.length];
+    private synchronized void disconnect() throws IOException {
+        if (in != null) in.close();
+        in = null;
 
-            toSend[0] = (byte) (command & 0x000000ff);
-            System.arraycopy(params, 0, toSend, 1, params.length);
+        if (out != null) out.close();
+        out = null;
 
-            out.write(toSend);
-            out.flush();
-            Thread.sleep(TIMEOUT);
-        } catch (InterruptedException ex) {
-            Log.i(DEBUG_TAG, "Error on sending command: " + command + ", " + ex.toString());
-            return false;
-        }
-        return true;
+        if (btSocket != null) btSocket.close();
+        btSocket = null;
     }
 
-    private byte[] read() throws IOException {
-        byte[] buffer = new byte[READ_BUFF_SIZE];
+    private synchronized void write(int cmd) throws IOException {
+        out.write(cmd);
+        out.flush();
+    }
 
+    private synchronized void write(byte[] data) throws IOException {
+        out.write(data);
+        out.flush();
+    }
+
+    // reads at most numbytes bytes
+    private synchronized byte[] read(int numBytes) throws IOException {
+        byte[] buffer = new byte[numBytes];
         int numBytesRead = 0;
 
-        // wait for something to read
+        int retries = 0;
         try {
-            int retries = 0;
+            // wait for first byte to be available
             while (in.available() == 0) {
-                if (retries++ > READ_ATTEMPTS) {
-                    throw new IOException("No data was available for reading");
-                }
-                Thread.sleep(TIMEOUT);
+                if (retries++ > 5) throw new IOException("No data was available for reading");
+                Thread.sleep(33);
             }
+            // read bytes
             while (in.available() > 0) {
-                numBytesRead += in.read(buffer, numBytesRead, in.available());
-                Thread.sleep(TIMEOUT);
+                numBytesRead += in.read(buffer, numBytesRead, Math.min(in.available(), numBytes - numBytesRead));
+                Thread.sleep(33);
             }
         } catch (InterruptedException ex) {
-            Log.i(DEBUG_TAG, "Error on reading: " + ex.toString());
+            throw new IOException("Reading data was interrupted");
         }
 
         return Arrays.copyOfRange(buffer, 0, numBytesRead);
     }
-    /*
 
-                Log.i(DEBUG_TAG, "pos: " + position);
-                Log.i(DEBUG_TAG, "id: " + id);
-                BluetoothDevice btDevice = (BluetoothDevice) parent.getAdapter().getItem(position);
-                UUID uuid = btDevice.getUuids()[0].getUuid();
-                Log.i(DEBUG_TAG, "BTDevice: " + btDevice.getName() + " " + btDevice.getAddress() + " " + uuid.toString());
+    private synchronized byte[] read() throws IOException {
+        return read(256);
+    }
 
-                BluetoothSocket btSocket;
-                try {
-                    btSocket = btDevice.createRfcommSocketToServiceRecord(uuid);
-                } catch (IOException ex) {
-                    Log.i(DEBUG_TAG, "Failed to create RfComm socket: " + ex.toString());
-                    return;
-                }
-                Log.i(DEBUG_TAG, "Created a bluetooth socket.");
+    // INNER SUPPORT CLASSES
 
-                for (int i = 0; ; i++) {
-                    try {
-                        btSocket.connect();
-                    } catch (IOException ex) {
-                        if (i < 5) {
-                            Log.i(DEBUG_TAG, "Failed to connect. Retrying: " + ex.toString());
-                            continue;
-                        }
+    // Utilities for converting between UI and Gadget param values and types
+    // Since streams in Java has writeByte(int) function all "byte" values are encoded as integers
+    public static final class Util {
 
-                        Log.i(DEBUG_TAG, "Failed to connect: " + ex.toString());
-                        return;
-                    }
-                    break;
-                }
+        private final static DateFormat format = new SimpleDateFormat("hh:mm:ss", Locale.ENGLISH);
 
-                Log.i(DEBUG_TAG, "Connected to the bluetooth socket.");
-                try {
-                    OutputStream writer = new DataOutputStream(new BufferedOutputStream(btSocket.getOutputStream()));
-                    writer.write(2);
-                    writer.flush();
-                } catch (IOException ex) {
-                    Log.i(DEBUG_TAG, "Failed to write a command: " + ex.toString());
-                    return;
-                }
-                Log.i(DEBUG_TAG, "Command is sent: " + 2);
+        public static int parseFrequency(String str) {
+            str = str.replace("\\s*[Hh][Zz]", "");
+            return Integer.parseInt(str);
+        }
 
-                byte[] output = new byte[256];
-                String rejID = "";
-                try {
-                    DataInputStream reader = new DataInputStream(new BufferedInputStream(btSocket.getInputStream()));
-                    int bytesRead = 0;
-                    while(reader.available() < 1);
-                    while(reader.available() > 0) {
-                        bytesRead += reader.read(output, bytesRead, reader.available());
-                        Thread.sleep(100);
-                    }
-                    Log.i(DEBUG_TAG, "Read #" + bytesRead + " bytes");
-                    if(bytesRead > 0) {
-                        rejID = new String(output);
-                    }
-                } catch (IOException|InterruptedException ex) {
-                    Log.i(DEBUG_TAG, "Failed to write a command: " + ex.toString());
-                    return;
-                }
-                Log.i(DEBUG_TAG, "Result: " + rejID);
+        public static int parseDelay(String str) {
+            Calendar date = Calendar.getInstance();
+            try {
+                date.setTime(format.parse(str));
+            } catch (ParseException ex) {
+                return -1;
+            }
+            return
+                    date.get(Calendar.MINUTE) * 60 +
+                            date.get(Calendar.SECOND);
+        }
 
-                try {
-                    btSocket.close();
-                } catch (IOException ex) {
-                    Log.i(DEBUG_TAG, "Failed to close the bluetooth socket.");
-                    return;
-                }
-                Log.i(DEBUG_TAG, "Closed the bluetooth socket.");
- */
+        public static int parseLength(String str) {
+            Calendar date = Calendar.getInstance();
+            try {
+                date.setTime(format.parse(str));
+            } catch (ParseException ex) {
+                return -1;
+            }
+            return
+                    date.get(Calendar.HOUR_OF_DAY) * 3600 +
+                            date.get(Calendar.MINUTE) * 60 +
+                            date.get(Calendar.SECOND);
+        }
+
+        public static int delayToByte(int delay) {
+            return delay & 0xff;
+        }
+
+        public static int delayFromByte(int delay) {
+            return delay & 0x00ff;
+        }
+
+        public static int[] lengthToByte(int length) {
+            int lo = length & 0x00ff;
+            int hi = ((length & 0xff00) >> 16) & 0x00ff;
+            return new int[]{lo, hi};
+        }
+
+        public static int lengthFromByte(byte[] length) {
+            int lo = length[0];
+            int hi = length[1];
+            return ((hi << 16) & 0xff00) | (lo & 0x00ff);
+        }
+
+        public static int lengthFromByte(int[] length) {
+            int lo = length[0];
+            int hi = length[1];
+            return ((hi << 16) & 0xff00) | (lo & 0x00ff);
+        }
+
+        public static int freqToByte(int freq) {
+            final int SHIFT = 2;
+            switch (freq) {
+                case 20:
+                    return 0;
+                case 50:
+                    return 1 << SHIFT;
+                case 100:
+                    return 2 << SHIFT;
+                case 200:
+                    return 3 << SHIFT;
+                case 400:
+                    return 4 << SHIFT;
+                case 500:
+                    return 5 << SHIFT;
+                case 700:
+                    return 6 << SHIFT;
+                case 1000:
+                    return 7 << SHIFT;
+                default:
+                    return 2 << SHIFT;
+            }
+        }
+
+        public static int freqFromByte(int freq) {
+            final int SHIFT = 2;
+            final int MASK = 0x1C;
+            freq = (freq & MASK) >>> SHIFT;
+            switch (freq) {
+                case 0:
+                    return 20;
+                case 1:
+                    return 50;
+                case 2:
+                    return 100;
+                case 3:
+                    return 200;
+                case 4:
+                    return 400;
+                case 5:
+                    return 500;
+                case 6:
+                    return 700;
+                case 7:
+                    return 1000;
+                default:
+                    return -1;
+            }
+        }
+
+        public static int channelCount(boolean... channels) {
+            int cnt = 0;
+            for (int i = 0; i < channels.length; i++) {
+                if (channels[i]) cnt++;
+            }
+            return cnt;
+        }
+
+        public static int channelCountToByte(boolean... channels) {
+            return channelCountToByte(channelCount(channels));
+        }
+
+        public static int channelCountToByte(int cc) {
+            final int SHIFT = 5;
+            final int MASK = 0xe0;
+            cc = cc - 1;
+            return ((cc << SHIFT) & MASK);
+        }
+
+        public static int channelCountFromByte(int cc) {
+            final int SHIFT = 5;
+            final int MASK = 0xe0;
+            cc = (cc & MASK) >>> SHIFT;
+            return cc + 1;
+        }
+
+        public static int[] channelConfigurationOffline(boolean... channels) {
+            int[] config = new int[6];
+            for (int i = 0; i < 6; i++) {
+                if (channels[i]) config[i] = i & 0xff;
+                else config[i] = 0xff;
+            }
+            return config;
+        }
+
+        public static int[] channelConfigurationOnline(boolean... channels) {
+            int count = 0;
+            for (int i = 0; i < channels.length; i++) if (channels[i]) count++;
+            int[] config = new int[count + 2];
+            config[0] = 0x05;
+            for (int i = 0, j = 1; i < channels.length; i++) {
+                if (channels[i]) config[j++] = (i & 0xff) | 0x80;
+            }
+            return config;
+
+        }
+
+        public static int accToByte(int acc) {
+            switch (acc) {
+                case 6:
+                    return 0;
+                case 12:
+                    return 1;
+                case 24:
+                    return 2;
+                default:
+                    return -1;
+            }
+        }
+
+        public static int accFromByte(int acc) {
+            final int MASK = 0x03;
+            acc = acc & MASK;
+            switch (acc) {
+                case 0:
+                    return 6;
+                case 1:
+                    return 12;
+                case 2:
+                    return 24;
+                default:
+                    return -1;
+            }
+        }
+
+        public static int gyroToByte(int gyro) {
+            final int SHIFT = 2;
+            switch (gyro) {
+                case 250:
+                    return 0;
+                case 500:
+                    return 1 << SHIFT;
+                case 2500:
+                    return 2 << SHIFT;
+                default:
+                    return -1;
+            }
+        }
+
+        public static int gyroFromByte(int gyro) {
+            final int MASK = 0x0c;
+            final int SHIFT = 2;
+            gyro = (gyro & MASK) >>> SHIFT;
+            switch (gyro) {
+                case 0:
+                    return 250;
+                case 1:
+                    return 500;
+                case 2:
+                    return 2500;
+                default:
+                    return -1;
+            }
+        }
+
+        public static int[] offlineSettings(int delay, int len, int freq, int acc, int gyro, boolean... channels) {
+            int[] settings = new int[13];
+            settings[0] = delayToByte(delay);
+            settings[1] = lengthToByte(delay)[0];
+            settings[2] = lengthToByte(delay)[1];
+            settings[3] = channelCountToByte(channels) | freqToByte(freq);
+            for (int i = 4, j = 0; i < 10; i++, j++) {
+                settings[i] = channelConfigurationOffline(channels)[j];
+            }
+            settings[11] = 0xff;
+            settings[12] = 0xff;
+            settings[13] = accToByte(acc) | gyroToByte(gyro);
+            return settings;
+        }
+
+        public static int[] onlineSettings(int freq, int acc, int gyro, boolean... channels) {
+            int cc = channelCount(channels);
+            int[] settings = new int[2 + cc];
+            settings[0] = 0x02 | freqToByte(freq) | channelCountToByte(channels);
+            int i = 1;
+            for (int j = 0; i < 1 + cc; i++, j++) {
+                settings[i] = 0x80 | channelConfigurationOnline(channels)[j];
+            }
+            settings[i] = accToByte(acc) | gyroToByte(gyro);
+            return settings;
+        }
+
+
+    }
+
+
 }
 

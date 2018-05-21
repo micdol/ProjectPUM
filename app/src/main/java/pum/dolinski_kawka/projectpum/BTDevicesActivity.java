@@ -4,7 +4,6 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
-import android.bluetooth.BluetoothSocket;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -20,17 +19,11 @@ import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.ToggleButton;
 
-import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.IOException;
-import java.io.OutputStream;
-import java.util.UUID;
-
 public class BTDevicesActivity extends Activity {
 
     private static final String DEBUG_TAG = "--DEBUG--";
+
+    public static final String EXTRA_BLUETOOTH_DEVICE = "BLUETOOTH_DEVICE";
 
     Button btnBTScan;
     ToggleButton tglBTToggle;
@@ -68,10 +61,7 @@ public class BTDevicesActivity extends Activity {
         // Setup receiver for Bluetooth Events
         initReceivers();
 
-
         updateUI();
-
-        Log.i(DEBUG_TAG, "onCreate - end");
     }
 
     @Override
@@ -134,6 +124,11 @@ public class BTDevicesActivity extends Activity {
                 if (btAdapter.isDiscovering()) {
                     btAdapter.cancelDiscovery();
                 }
+
+                BluetoothDevice btDevice = (BluetoothDevice) parent.getAdapter().getItem(position);
+                Intent initGadget = new Intent(BTDevicesActivity.this, GadgetMainActivity.class);
+                initGadget.putExtra(EXTRA_BLUETOOTH_DEVICE, btDevice);
+                startActivity(initGadget);
             }
         });
 

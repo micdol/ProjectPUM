@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/ll_length"
+    android:layout_width="fill_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:padding="5dp">
+
+
+    <TextView
+        android:id="@+id/tv_length"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_margin="5dp"
+        android:text="Length"
+        android:textAppearance="@android:style/TextAppearance.Material.Medium" />
+
+    <EditText
+        android:id="@+id/et_length"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:ems="10"
+        android:inputType="time"
+        android:textAppearance="@android:style/TextAppearance.Material.Small" />
+
+</LinearLayout>
