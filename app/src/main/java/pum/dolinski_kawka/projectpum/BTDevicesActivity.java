@@ -165,6 +165,7 @@ public class BTDevicesActivity extends Activity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        /*
         for (int freq : Gadget.FREQUENCIES) {
             for (int cc = 1; cc < 7; cc++) {
                 boolean channels[] = new boolean[]{ false, false, false, false, false, false };
@@ -172,10 +173,9 @@ public class BTDevicesActivity extends Activity {
                     channels[c] = true;
 
                 Log.e(DEBUG.TAG, new OnlineSettings(freq, 6, 250, channels).toString());
-
-
             }
         }
+        */
 
         Log.i(DEBUG.TAG, "BTDevicesActivity - onCreate - start");
 

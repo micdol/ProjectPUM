@@ -29,12 +29,12 @@ public class OnlineSample {
 
         // parse data
         for (int i = 0; i < channelCnt; i++) {
-            int H = data[2 * i];
-            int L = data[2 * i + 1];
-            int V = ((H << 8) & 0x0000ff00) | (L & 0x000000ff);
+            int H = data[2 * i + 1];
+            int L = data[2 * i];
+            short V = (short) (((H << 8) & 0x0000ff00) | (L & 0x000000ff));
 
             // TODO - scaling of values according to channel (so far all scaled from 0 to 1)
-            channelValues[i] = 1.0f * V / 65535.0f;
+            channelValues[i] = 1.0f * V / Short.MAX_VALUE;
         }
 
         // check if valid

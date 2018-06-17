@@ -320,9 +320,10 @@ public class Gadget {
 
                         Log.i(DEBUG.TAG, "Starting online registration....");
                         for (int i : settings.toByteArray()) {
+                            Log.i(DEBUG.TAG, "Writing settings byte: " + i);
                             out.write(i);
                             out.flush();
-                            Thread.sleep(33);
+                            Thread.sleep(333);
                         }
 
 
@@ -331,37 +332,22 @@ public class Gadget {
 
                         final int sampleSize = settings.channelCnt * 2 + 2;
 
-                        byte[] buffer = new byte[128];
-                        int idx = 0;
-                        int LP_READ = 0;
-                        int totalNumBytesRead = 0;
+                        byte[] buffer = new byte[sampleSize];
                         while (isOnlineRegistrationRunning) {
                             if (in.available() == 0)
                                 continue;
 
-                            int bytesRead = in.read(buffer, idx, Math.min(in.available(), buffer.length - idx));
-                            idx += bytesRead;
-                            totalNumBytesRead += bytesRead;
-                            LP_READ++;
-
-                            int i = 0;
-                            if (idx > sampleSize) {
-                                for (i = 0; i < idx; i += sampleSize) {
-                                    byte[] sampleData = Arrays.copyOfRange(buffer, i, i + sampleSize);
-                                    Log.i(DEBUG.TAG, "LP_READ: " + LP_READ + " " + Arrays.toString(sampleData));
-                                    for (GadgetListener listener : listeners)
-                                        listener.onOnlineRegistrationSampleReceived(new OnlineSample(sampleData, settings));
-                                }
-
-                                for (int j = 0; i < idx; i++, j++) {
-                                    buffer[j] = buffer[i];
-                                }
-                                idx = 0;
+                            int i=0;
+                            while (isOnlineRegistrationRunning && i < sampleSize) {
+                                if(in.available() == 0) continue;
+                                byte b = in.readByte();
+                                buffer[i++] = b;
                             }
-                            Log.i(DEBUG.TAG, "Idx: " + idx + ", i: " + i + "LP_READ: " + LP_READ + " " + Arrays.toString(buffer));
 
+                            for (GadgetListener listener : listeners)
+                                listener.onOnlineRegistrationSampleReceived(new OnlineSample(buffer, settings));
                         }
-                        Log.i(DEBUG.TAG, "Online registration finished! Total num bytes read: " + totalNumBytesRead);
+
 
                         out.write(CMD.STOP_ONLINE_REGISTRATION);
                         out.flush();

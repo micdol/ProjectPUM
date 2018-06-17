@@ -7,11 +7,22 @@
     tools:context=".GadgetOnlinePlotActivity"
     android:id="@+id/cl_online_plot">
 
+    <com.jjoe64.graphview.GraphView
+        android:id="@+id/graph"
+        android:layout_width="579dp"
+        android:layout_height="299dp"
+        android:layout_marginBottom="8dp"
+        android:layout_marginEnd="8dp"
+        android:layout_marginStart="4dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+
     <Button
         android:id="@+id/btn_online_stop"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Stop"
         app:layout_constraintBottom_toBottomOf="@+id/cl_online_plot"
-        app:layout_constraintLeft_toLeftOf="@+id/cl_online_plot"/>
+        app:layout_constraintLeft_toLeftOf="@+id/cl_online_plot" />
 </android.support.constraint.ConstraintLayout>

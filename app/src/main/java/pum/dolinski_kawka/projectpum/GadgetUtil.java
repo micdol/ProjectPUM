@@ -67,26 +67,25 @@ public final class GadgetUtil {
     }
 
     public static int freqToByte(int freq) {
-        final int SHIFT = 2;
         switch (freq) {
             case 20:
                 return 0;
             case 50:
-                return 1 << SHIFT;
+                return 0b000_001_00;
             case 100:
-                return 2 << SHIFT;
+                return 0b000_010_00;
             case 200:
-                return 3 << SHIFT;
+                return 0b000_011_00;
             case 400:
-                return 4 << SHIFT;
+                return 0b000_100_00;
             case 500:
-                return 5 << SHIFT;
+                return 0b000_101_00;
             case 700:
-                return 6 << SHIFT;
+                return 0b000_110_00;
             case 1000:
-                return 7 << SHIFT;
+                return 0b000_111_00;
             default:
-                return 2 << SHIFT;
+                return 0b000_010_00;
         }
     }
 
@@ -130,10 +129,22 @@ public final class GadgetUtil {
     }
 
     public static int channelCountToByte(int cc) {
-        final int SHIFT = 5;
-        final int MASK = 0xe0;
-        cc = cc - 1;
-        return ((cc << SHIFT) & MASK);
+        switch (cc) {
+            case 1:
+                return 0b000_000_00;
+            case 2:
+                return 0b001_000_00;
+            case 3:
+                return 0b010_000_00;
+            case 4:
+                return 0b011_000_00;
+            case 5:
+                return 0b100_000_00;
+            case 6:
+                return 0b101_000_00;
+            default:
+                return 0b000_000_00;
+        }
     }
 
     public static int channelCountFromByte(int cc) {
@@ -227,7 +238,8 @@ public final class GadgetUtil {
         }
     }
 
-    public static int[] offlineSettings(int delay, int len, int freq, int acc, int gyro, boolean... channels) {
+    public static int[] offlineSettings(int delay, int len, int freq, int acc, int gyro,
+                                        boolean... channels) {
         int[] settings = new int[13];
         settings[0] = delayToByte(delay);
         settings[1] = lengthToByte(delay)[0];

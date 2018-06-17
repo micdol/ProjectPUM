@@ -2,6 +2,7 @@ package pum.dolinski_kawka.projectpum;
 
 import android.os.Parcel;
 import android.os.Parcelable;
+import android.util.Log;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -139,12 +140,28 @@ public class OnlineSettings implements Parcelable {
 
     protected OnlineSettings(Parcel in) {
         freq = in.readInt();
+        Log.i(DEBUG.TAG, "Reading freq from parcel: " + freq);
+
         channelCnt = in.readInt();
+        Log.i(DEBUG.TAG, "Reading channelCnt from parcel: " + channelCnt);
+
         acc = in.readInt();
+        Log.i(DEBUG.TAG, "Reading acc from parcel: " + acc);
+
         gyro = in.readInt();
-        channelConfig = in.createBooleanArray();
+        Log.i(DEBUG.TAG, "Reading gyro from parcel: " + gyro);
+
+        channelConfig = new boolean[6];
+        for (int i = 0; i < 6; i++) {
+            channelConfig[i] = in.readInt() == 1;
+            Log.i(DEBUG.TAG, "Reading channel " + i + " from parcel: " + channelConfig[i]);
+        }
+
         toggleByte = in.readByte() != 0;
+        Log.i(DEBUG.TAG, "Reading toggleByte from parcel: " + toggleByte);
+
         startByte = in.readByte() != 0;
+        Log.i(DEBUG.TAG, "Reading startByte from parcel: " + startByte);
     }
 
     @Override
@@ -154,12 +171,27 @@ public class OnlineSettings implements Parcelable {
 
     @Override
     public void writeToParcel(Parcel dest, int flags) {
+        Log.i(DEBUG.TAG, "Writing freq to parcel");
         dest.writeInt(freq);
+
+        Log.i(DEBUG.TAG, "Writing channelCnt to parcel");
         dest.writeInt(channelCnt);
+
+        Log.i(DEBUG.TAG, "Writing acc to parcel");
         dest.writeInt(acc);
+
+        Log.i(DEBUG.TAG, "Writing gyro to parcel");
         dest.writeInt(gyro);
-        dest.writeBooleanArray(channelConfig);
+
+        Log.i(DEBUG.TAG, "Writing channelConfig to parcel");
+        for (int i = 0; i < 6; i++) {
+            dest.writeInt(channelConfig[i] ? 1 : 0);
+        }
+
+        Log.i(DEBUG.TAG, "Writing toggleByte to parcel");
         dest.writeByte((byte) (toggleByte ? 1 : 0));
+
+        Log.i(DEBUG.TAG, "Writing startByte to parcel");
         dest.writeByte((byte) (startByte ? 1 : 0));
     }
     // endregion PARCELABLE_IMPL

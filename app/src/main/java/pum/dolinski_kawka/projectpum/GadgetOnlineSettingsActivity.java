@@ -69,6 +69,8 @@ public class GadgetOnlineSettingsActivity extends Activity {
 
             // construct settings
             OnlineSettings settings = new OnlineSettings(freq, accSens, gyroSens, channelConfig);
+            settings.setToggleByte(true);
+            settings.setStartByte(true);
 
             // validate
             boolean settingsValid = settings.areValid();
@@ -91,7 +93,7 @@ public class GadgetOnlineSettingsActivity extends Activity {
             Log.i(DEBUG.TAG, settings.toString());
 
             // settings valid - start registration and start plot activity (pass settings further)
-            Intent plotActivity = new Intent(GadgetOnlineSettingsActivity.this, GadgetOnlinePlotActivity.class);
+            Intent plotActivity = new Intent(getBaseContext(), GadgetOnlinePlotActivity.class);
             plotActivity.putExtra(EXTRA_SETTINGS, settings);
             Gadget.getInstance().startOnlineRegistration(settings);
             startActivity(plotActivity);
