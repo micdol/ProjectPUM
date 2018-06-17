@@ -1,12 +1,25 @@
 package pum.dolinski_kawka.projectpum;
 
+import android.os.Parcel;
+import android.os.Parcelable;
+
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
-public class OnlineSettings {
+// Class holding settings for online registration, that is:
+// - channel count
+// - frequency (Hz)
+// - accelerometer sensitivity (g/s)
+// - gyroscope sensitivity (deg/s)
+// - channel configuration (6 channels)
+// Human readable settings can be converted to writable bytes but NOT the other way around (as there
+// is no such use-case). Provides a way to validate given settings and get errors
+// Implements Parcelable so can be easily passed between activates (putExtraParcelable)
+public class OnlineSettings implements Parcelable {
     int channelCnt, freq, acc, gyro;
     boolean[] channelConfig;
-    boolean toggleByte, startByte;
+    boolean   toggleByte, startByte;
 
     public OnlineSettings() {
         this(100, 6, 250, true, true, true, true, true, true);
@@ -17,16 +30,18 @@ public class OnlineSettings {
         this.acc = acc;
         this.gyro = gyro;
         this.channelCnt = 0;
-        for (boolean b : channelConfig) if (b) this.channelCnt++;
+        for (boolean b : channelConfig)
+            if (b)
+                this.channelCnt++;
         this.channelConfig = channelConfig;
     }
 
     public boolean areValid() {
-        boolean result = Gadget.AVAILABLE_FREQUENCIES.contains(freq);
-        result &= Gadget.AVAILABLE_ACCEL_SENS.contains(acc);
-        result &= Gadget.AVAILABLE_GYRO_SENS.contains(gyro);
+        boolean result = Gadget.FREQUENCIES.contains(freq);
+        result &= Gadget.ACCELEROMETER_SENSITIVITIES.contains(acc);
+        result &= Gadget.GYROSCOPE_SENSITIVITIES.contains(gyro);
         result &= Gadget.CHANNEL_PER_FREQUENCY.get(freq) >= channelCnt;
-        result &= !(channelCnt <= 6 && channelCnt >= 1);
+        result &= !(channelCnt > 6 || channelCnt < 1);
         return result;
     }
 
@@ -41,19 +56,19 @@ public class OnlineSettings {
 
     public List<String> getErrors() {
         List<String> errors = new ArrayList<>();
-        if (!Gadget.AVAILABLE_FREQUENCIES.contains(freq)) {
+        if (!Gadget.FREQUENCIES.contains(freq)) {
             errors.add("Unsupported frequency: " + freq);
         }
-        if (!Gadget.AVAILABLE_ACCEL_SENS.contains(acc)) {
+        if (!Gadget.ACCELEROMETER_SENSITIVITIES.contains(acc)) {
             errors.add("Unsupported accelerometer sens: " + acc);
         }
-        if (!Gadget.AVAILABLE_GYRO_SENS.contains(gyro)) {
+        if (!Gadget.GYROSCOPE_SENSITIVITIES.contains(gyro)) {
             errors.add("Unsupported gyroscope sens: " + gyro);
         }
         if (Gadget.CHANNEL_PER_FREQUENCY.get(freq) < channelCnt) {
             errors.add("Unsupported channel configuration for this freq: max." + Gadget.CHANNEL_PER_FREQUENCY.get(freq) + " for " + freq + " Hz");
         }
-        if (channelCnt <= 6 && channelCnt >= 1) {
+        if (channelCnt > 6 || channelCnt < 1) {
             errors.add("Unsupported channel configuration, channel count: " + channelCnt);
         }
         return errors;
@@ -67,14 +82,85 @@ public class OnlineSettings {
         startByte = isSet;
     }
 
-    public byte[] toByteArray() {
-        int[] settings = Gadget.Util.onlineSettings(freq, acc, gyro, channelConfig);
-        byte[] result = new byte[(toggleByte ? 1 : 0) + (startByte ? 1 : 0) + settings.length];
-        if (toggleByte) result[0] = 0x05;
-        for (int srcIdx = 0, dstIdx = toggleByte ? 1 : 0; srcIdx < settings.length; srcIdx++, dstIdx++) {
-            result[dstIdx] = (byte) (settings[srcIdx] & 0x000000ff);
+    public int[] toByteArray() {
+        final int BYTE_COUNT = 0
+                + (toggleByte ? 1 : 0)
+                + 1 // one byte to encode frequency and channel count
+                + channelCnt // one byte for each channel
+                + 1 // one byte to encode accelerometer and gyroscope
+                + (startByte ? 1 : 0);
+
+        int[] result = new int[BYTE_COUNT];
+
+        int currentIdx = 0;
+        if (toggleByte)
+            result[currentIdx++] = 0x05;
+
+        result[currentIdx++] = 0x02 | GadgetUtil.freqToByte(freq) | GadgetUtil.channelCountToByte(channelCnt);
+
+        for (int channel = 0; channel < 6; channel++) {
+            if (channelConfig[channel]) {
+                result[currentIdx++] = 0x80 | channel;
+            }
         }
-        if (startByte) result[result.length - 1] = (byte) 0xda;
+
+        result[currentIdx++] = GadgetUtil.accToByte(acc) | GadgetUtil.gyroToByte(gyro);
+
+        if (startByte)
+            result[currentIdx++] = 0xda;
+
         return result;
     }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder("Online settings: \n");
+        sb.append("Frequency: " + freq + "\n");
+        sb.append("Channel count: " + channelCnt + "\n");
+        sb.append("Channel config: " + Arrays.toString(channelConfig) + "\n");
+        sb.append("Accelerometer sens: " + acc + "\n");
+        sb.append("Gyroscope sens: " + gyro + "\n");
+        sb.append("Byte settings: " + Arrays.toString(toByteArray()));
+        return sb.toString();
+    }
+
+    // region PARCELABLE_IMPL
+    public static final Creator<OnlineSettings> CREATOR = new Creator<OnlineSettings>() {
+        @Override
+        public OnlineSettings createFromParcel(Parcel in) {
+            return new OnlineSettings(in);
+        }
+
+        @Override
+        public OnlineSettings[] newArray(int size) {
+            return new OnlineSettings[size];
+        }
+    };
+
+    protected OnlineSettings(Parcel in) {
+        freq = in.readInt();
+        channelCnt = in.readInt();
+        acc = in.readInt();
+        gyro = in.readInt();
+        channelConfig = in.createBooleanArray();
+        toggleByte = in.readByte() != 0;
+        startByte = in.readByte() != 0;
+    }
+
+    @Override
+    public int describeContents() {
+        return 0;
+    }
+
+    @Override
+    public void writeToParcel(Parcel dest, int flags) {
+        dest.writeInt(freq);
+        dest.writeInt(channelCnt);
+        dest.writeInt(acc);
+        dest.writeInt(gyro);
+        dest.writeBooleanArray(channelConfig);
+        dest.writeByte((byte) (toggleByte ? 1 : 0));
+        dest.writeByte((byte) (startByte ? 1 : 0));
+    }
+    // endregion PARCELABLE_IMPL
 }

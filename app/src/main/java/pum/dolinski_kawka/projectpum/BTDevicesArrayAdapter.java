@@ -4,7 +4,6 @@ import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.os.ParcelUuid;
-import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.BaseAdapter;
@@ -13,44 +12,47 @@ import android.widget.TextView;
 import java.util.Collection;
 import java.util.HashSet;
 
+// Adapter for ListView used in BTDevicesActivity
+// Holds info about bluetooth device, displays only name and whether device is already paired
 public class BTDevicesArrayAdapter extends BaseAdapter {
-    private Activity context;
-    private Collection<BluetoothDevice> devices;
+    private Activity                    context;
+    private Collection<BluetoothDevice> btDevices;
 
     public BTDevicesArrayAdapter(Activity context) {
         super();
         this.context = context;
-        devices = new HashSet<>();
+        btDevices = new HashSet<>();
     }
 
-    public void add(BluetoothDevice device) {
-        ParcelUuid[] uuids = device.getUuids();
-        devices.add(device);
+    public void add(BluetoothDevice btDevice) {
+        ParcelUuid[] uuids = btDevice.getUuids();
+        btDevices.add(btDevice);
         notifyDataSetChanged();
     }
 
-    public void addAll(Collection<? extends BluetoothDevice> devices) {
-        this.devices.addAll(devices);
+    public void addAll(Collection<? extends BluetoothDevice> btDevices) {
+        this.btDevices.addAll(btDevices);
         notifyDataSetChanged();
     }
 
     public void clear() {
-        devices.clear();
+        btDevices.clear();
         notifyDataSetChanged();
     }
 
+    // region BASE_ADAPTER_IMPL
     @Override
     public int getCount() {
-        return devices.size();
+        return btDevices.size();
     }
 
     @Override
     public BluetoothDevice getItem(int position) {
-        if (position < 0 || position > devices.size()) {
+        if (position < 0 || position > btDevices.size()) {
             return null;
         }
         int i = 0;
-        for (BluetoothDevice bt : devices) {
+        for (BluetoothDevice bt : btDevices) {
             if (i++ == position) {
                 return bt;
             }
@@ -67,12 +69,15 @@ public class BTDevicesArrayAdapter extends BaseAdapter {
     public View getView(int position, View convertView, ViewGroup parent) {
         View rowView = context.getLayoutInflater().inflate(R.layout.lv_bluetooth_devices_item, null, true);
 
-        BluetoothDevice btd = getItem(position);
+        final BluetoothDevice btd = getItem(position);
         String name = btd.getName();
+        if(name == null || name == "" || name.isEmpty()) {
+            name = "UNKNOWN";
+        }
         boolean isPaired = BluetoothAdapter.getDefaultAdapter().getBondedDevices().contains(btd);
 
-        TextView tvDeviceName = rowView.findViewById(R.id.tv_bt_device_name);
-        tvDeviceName.setText(btd.getName());
+        final TextView tvDeviceName = rowView.findViewById(R.id.tv_bt_device_name);
+        tvDeviceName.setText(name);
 
         TextView tvIsPaired = rowView.findViewById(R.id.tv_bt_device_is_paired);
         if (isPaired) {
@@ -85,4 +90,5 @@ public class BTDevicesArrayAdapter extends BaseAdapter {
 
         return rowView;
     }
+    // endregion BASE_ADAPTER_IMPL
 }
